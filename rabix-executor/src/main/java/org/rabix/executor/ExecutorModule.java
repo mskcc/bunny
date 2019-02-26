@@ -45,6 +45,10 @@ public class ExecutorModule extends BackendModule {
         install(new LocalStorageModule(configModule));
         break;
       }
+      else if (backendType.trim().equalsIgnoreCase("AWS")) {
+        install(new AWSBatchStorageModule(configModule));
+        break;
+      }
     }
     
     boolean mockBackendEnabled = configuration.getBoolean("backend.mock.enabled", false);

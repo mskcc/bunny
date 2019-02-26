@@ -43,5 +43,5 @@
 			<artifactId>compiler</artifactId>
 			<version>0.9.5</version>
 		</dependency>
-	</dependencies>
+    </dependencies>
 </project>

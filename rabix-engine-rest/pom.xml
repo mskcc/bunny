@@ -192,16 +192,26 @@
 			</dependency>
 		</dependencies>
 	</profile>
-		<profile>
-			<id>lsf</id>
-			<dependencies>
-				<dependency>
-					<groupId>org.rabix</groupId>
-					<artifactId>rabix-backend-lsf</artifactId>
-					<version>${project.version}</version>
-				</dependency>
-			</dependencies>
-		</profile>
+	<profile>
+		<id>aws</id>
+		<dependencies>
+			<dependency>
+				<groupId>org.rabix</groupId>
+				<artifactId>rabix-aws-batch</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+		</dependencies>
+	</profile>
+	<profile>
+		<id>lsf</id>
+		<dependencies>
+			<dependency>
+				<groupId>org.rabix</groupId>
+				<artifactId>rabix-backend-lsf</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+		</dependencies>
+	</profile>
 		<profile>
 			<id>deploy</id>
 			<dependencies>
