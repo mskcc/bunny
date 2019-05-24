@@ -14,6 +14,8 @@ import com.google.inject.Inject;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.io.IOUtils;
 import org.rabix.backend.api.WorkerService;
+import org.rabix.backend.api.callback.WorkerStatusCallback;
+import org.rabix.backend.api.callback.WorkerStatusCallbackException;
 import org.rabix.backend.api.engine.EngineStub;
 import org.rabix.backend.api.engine.EngineStubLocal;
 import org.rabix.bindings.BindingException;
@@ -56,7 +58,8 @@ public class AWSBatchScheduler implements WorkerService {
     private AWSBatch batchClient;
 
     private String jobQueue;
-    private String storageOptimaizedQueue;
+    @com.google.inject.Inject
+    private WorkerStatusCallback statusCallback;
     private String worker_docker_image;
 
     @Inject
@@ -285,29 +288,21 @@ public class AWSBatchScheduler implements WorkerService {
             jobRequest.withJobDefinition(jobArn);
 
             String queue = this.jobQueue;
-
-            try {
-                Bindings binding = BindingsFactory.create(job.getApp());
-                ResourceRequirement resource = binding.getResourceRequirement(job);
-                Long memoryReq = resource.getDiskSpaceMinMB();
-//                if(memoryReq != null && memoryReq > 40000) {
-//                    queue = this.storageOptimaizedQueue;
-//                }
-
-            } catch (BindingException e) {
-                logger.warn("Failed to extract resource requirements for job: " + job.getId() + ". Submitting to default queue");
-            }
-
             logger.info("Sending job to queue: " + queue);
 
             jobRequest.withJobQueue(queue);
             SubmitJobResult submittedJob = batchClient.submitJob(jobRequest);
             job = Job.cloneWithStatus(job, Job.JobStatus.RUNNING);
+            engineStub.send(job);
             this.pending.add(job);
         } catch (Exception e) {
             logger.error("Failed to submit job " + job.getName(), e);
-
             job = Job.cloneWithStatus(job, Job.JobStatus.FAILED);
+            try {
+                statusCallback.onJobFailed(job);
+            } catch (WorkerStatusCallbackException e1) {
+                logger.error("Failed to update status of the job " + job.getName(), e);
+            }
             engineStub.send(job);
         }
     }
@@ -325,9 +320,7 @@ public class AWSBatchScheduler implements WorkerService {
             ResourceRequirement resource = binding.getResourceRequirement(job);
             cpu = resource.getCpuMin();
             mem = resource.getMemMinMB();
-
-
-        } catch (BindingException e) {
+        } catch (Exception e) {
             logger.warn("Failed to extract resource requirements for job: " + job.getId());
         }
 

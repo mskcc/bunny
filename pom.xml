@@ -66,6 +66,7 @@
 		<module>rabix-backend-tes</module>
 		<module>rabix-backend-lsf</module>
         <module>rabix-aws-batch</module>
+        <module>rabix-batch-worker</module>
     </modules>
 
 	<properties>
