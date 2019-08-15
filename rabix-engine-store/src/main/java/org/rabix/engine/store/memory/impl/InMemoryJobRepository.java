@@ -4,8 +4,12 @@ import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import org.rabix.bindings.model.Job;
 import org.rabix.bindings.model.Job.JobStatus;
+import org.rabix.common.helper.JSONHelper;
 import org.rabix.engine.store.repository.JobRepository;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,11 +17,50 @@ import java.util.stream.Collectors;
 
 public class InMemoryJobRepository implements JobRepository {
 
-  private final Map<UUID, Map<UUID, JobEntity>> jobRepository;
+  private Map<UUID, Map<UUID, JobEntity>> jobRepository;
 
   @Inject
   public InMemoryJobRepository() {
     this.jobRepository = new ConcurrentHashMap<>();
+
+    String jobRepo = "jobRepo";
+
+    deserialize(jobRepo);
+
+    Runtime.getRuntime().addShutdownHook(new Thread(() ->
+    {
+      try {
+        serialize(jobRepo);
+      }
+      catch(IOException ex) {
+        ex.printStackTrace();
+      }
+    }
+    ));
+  }
+
+  private void serialize(String jobRepo) throws IOException {
+    String s1 = JSONHelper.writeObject(jobRepository);
+    Files.write(Paths.get(jobRepo), s1.getBytes());
+  }
+
+  private void deserialize(String jobRepo)  {
+    try {
+      if(Files.exists(Paths.get(jobRepo))) {
+        byte[] bytes = Files.readAllBytes(Paths.get(jobRepo));
+        String s = new String(bytes);
+
+        Map map = JSONHelper.readObject(s, Map.class);
+        jobRepository = map;
+
+      }
+      else {
+        System.out.println("File doesn't exist: " + jobRepo);
+
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   @Override
