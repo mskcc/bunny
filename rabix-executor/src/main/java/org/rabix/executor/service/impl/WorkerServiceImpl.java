@@ -1,12 +1,7 @@
 package org.rabix.executor.service.impl;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-
+import com.google.inject.BindingAnnotation;
+import com.google.inject.Inject;
 import org.apache.commons.configuration.Configuration;
 import org.rabix.backend.api.WorkerService;
 import org.rabix.backend.api.engine.EngineStub;
@@ -26,14 +21,18 @@ import org.rabix.transport.mechanism.TransportPluginException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.inject.BindingAnnotation;
-import com.google.inject.Inject;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class WorkerServiceImpl implements WorkerService {
 
   private static final Logger logger = LoggerFactory.getLogger(WorkerServiceImpl.class);
 
-  private final static String TYPE = "LOCAL";
+  public final static String TYPE = "LOCAL";
   
   @BindingAnnotation
   @Target({ java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.METHOD })

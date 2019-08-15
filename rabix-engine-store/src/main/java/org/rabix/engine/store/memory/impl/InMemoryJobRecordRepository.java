@@ -93,6 +93,18 @@ public class InMemoryJobRecordRepository extends JobRecordRepository {
   }
 
   @Override
+  public List<JobRecord> get() {
+    List<JobRecord> jobRecords = new ArrayList<>();
+
+    for (Map.Entry<UUID, Map<UUID, JobRecord>> uuidMapEntry : jobRecordsPerRootByExternalId.entrySet()) {
+      List<JobRecord> jobRecordsByRootId = get(uuidMapEntry.getKey());
+      jobRecords.addAll(jobRecordsByRootId);
+    }
+
+    return jobRecords;
+  }
+
+  @Override
   public JobRecord getRoot(UUID rootId) {
     Map<UUID, JobRecord> recordsPerRoot = jobRecordsPerRootByExternalId.get(rootId);
     return recordsPerRoot != null ? recordsPerRoot.get(rootId) : null;

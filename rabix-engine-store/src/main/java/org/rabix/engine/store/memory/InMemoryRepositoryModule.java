@@ -77,4 +77,10 @@ public class InMemoryRepositoryModule extends AbstractModule {
     return new InMemoryIntermediaryFilesRepository();
   }
 
+  @Provides
+  @Singleton
+  public LSFJobRepository provideLSFJobRepository() {
+    return new InMemoryLSFJobRepository();
+  }
+
 }

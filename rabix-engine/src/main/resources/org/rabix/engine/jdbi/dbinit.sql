@@ -470,3 +470,19 @@ DROP INDEX IF EXISTS context_record_status_index;
 --changeset bunny:1487849040814-77 dbms:postgresql
 CREATE UNIQUE INDEX intermediary_files_index ON intermediary_files USING btree (root_id, filename);
 --rollback DROP INDEX intermediary_files_index;
+
+--changeset bunny:1487849040814-78 dbms:postgresql
+CREATE TABLE lsf_job (
+    job_id uuid,
+    lsf_id integer NOT NULL
+);
+--rollback DROP TABLE lsf_job;
+
+--changeset bunny:1487849040814-79 dbms:postgresql
+ALTER TABLE ONLY lsf_job
+    ADD CONSTRAINT lsf_job_pkey PRIMARY KEY (job_id);
+--rollback ALTER TABLE lsf_job DROP CONSTRAINT lsf_job_pkey;
+
+--changeset bunny:1487849040814-80 dbms:postgresql
+ALTER TABLE lsf_job ADD CONSTRAINT lsf_job_job_id_fkey FOREIGN KEY (job_id) REFERENCES job (id) ON DELETE CASCADE;
+--rollback ALTER TABLE lsf_job DROP CONSTRAINT lsf_job_job_id_fkey;

@@ -52,6 +52,9 @@ public interface JobRepository {
 
   class JobEntity {
 
+    public JobEntity() {
+    }
+
     Job job;
     UUID groupId;
     String producedByNode;

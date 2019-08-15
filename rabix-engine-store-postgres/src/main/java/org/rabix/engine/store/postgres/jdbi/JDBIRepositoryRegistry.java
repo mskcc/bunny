@@ -1,18 +1,7 @@
 package org.rabix.engine.store.postgres.jdbi;
 
+import org.rabix.engine.store.postgres.jdbi.impl.*;
 import org.rabix.engine.store.repository.TransactionHelper;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIAppRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIBackendRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIContextRecordRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIDAGRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIEventRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIIntermediaryFilesRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIJobRecordRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIJobRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBILinkRecordRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIVariableRecordRepository;
-import org.rabix.engine.store.postgres.jdbi.impl.JDBIJobStatsRecordRepository;
-import org.skife.jdbi.v2.TransactionIsolationLevel;
 import org.skife.jdbi.v2.sqlobject.CreateSqlObject;
 import org.skife.jdbi.v2.sqlobject.Transaction;
 
@@ -50,6 +39,9 @@ public abstract class JDBIRepositoryRegistry extends TransactionHelper {
 
   @CreateSqlObject
   public abstract JDBIIntermediaryFilesRepository intermediaryFilesRepository();
+
+  @CreateSqlObject
+  public abstract JDBILSFJobRepository lsfJobRepository();
 
   @Transaction
   public <Result> Result doInTransaction(TransactionCallback<Result> callback) throws Exception {

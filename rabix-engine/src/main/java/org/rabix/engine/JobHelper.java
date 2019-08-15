@@ -1,13 +1,6 @@
 package org.rabix.engine;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
+import com.google.inject.Inject;
 import org.rabix.bindings.BindingException;
 import org.rabix.bindings.Bindings;
 import org.rabix.bindings.BindingsFactory;
@@ -24,18 +17,14 @@ import org.rabix.common.SystemEnvironmentHelper;
 import org.rabix.common.helper.CloneHelper;
 import org.rabix.common.helper.InternalSchemaHelper;
 import org.rabix.common.helper.JSONHelper;
-import org.rabix.engine.service.AppService;
-import org.rabix.engine.service.ContextRecordService;
-import org.rabix.engine.service.DAGNodeService;
-import org.rabix.engine.service.JobRecordService;
-import org.rabix.engine.service.VariableRecordService;
+import org.rabix.engine.service.*;
 import org.rabix.engine.store.model.ContextRecord;
 import org.rabix.engine.store.model.JobRecord;
 import org.rabix.engine.store.model.VariableRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.inject.Inject;
+import java.util.*;
 
 public class JobHelper {
 
@@ -144,13 +133,13 @@ public class JobHelper {
     return Job.cloneWithOutputs(completedJob, outputs);
   }
 
-  public Job createJob(JobRecord job, JobStatus status, boolean processVariables) throws BindingException {
-    DAGNode node = dagNodeService.get(InternalSchemaHelper.normalizeId(job.getId()), job.getRootId(), job.getDagHash());
+  public Job createJob(JobRecord jobRecord, JobStatus status, boolean processVariables) throws BindingException {
+    DAGNode node = dagNodeService.get(InternalSchemaHelper.normalizeId(jobRecord.getId()), jobRecord.getRootId(), jobRecord.getDagHash());
 
 
     Map<String, Object> inputs = new HashMap<>();
 
-    List<VariableRecord> inputVariables = variableRecordService.find(job.getId(), LinkPortType.INPUT, job.getRootId());
+    List<VariableRecord> inputVariables = variableRecordService.find(jobRecord.getId(), LinkPortType.INPUT, jobRecord.getRootId());
 
     Map<String, Object> preprocesedInputs = new HashMap<>();
     for (VariableRecord inputVariable : inputVariables) {
@@ -158,16 +147,16 @@ public class JobHelper {
       preprocesedInputs.put(inputVariable.getPortId(), value);
     }
 
-    ContextRecord contextRecord = contextRecordService.find(job.getRootId());
+    ContextRecord contextRecord = contextRecordService.find(jobRecord.getRootId());
     String encodedApp = URIHelper.createDataURI(JSONHelper.writeObject(appService.get(node.getAppHash())));
 
-    Job newJob = new Job(job.getExternalId(), job.getParentId(), job.getRootId(), job.getId(), encodedApp, status, null, preprocesedInputs, null, contextRecord.getConfig(), null, null);
+    Job newJob = new Job(jobRecord.getExternalId(), jobRecord.getParentId(), jobRecord.getRootId(), jobRecord.getId(), encodedApp, status, null, preprocesedInputs, null, contextRecord.getConfig(), null, null);
     if (processVariables) {
       inputs = processVariables(node, inputVariables, encodedApp, newJob);
     } else {
       inputs = preprocesedInputs;
     }
-    return new Job(job.getExternalId(), job.getParentId(), job.getRootId(), job.getId(), encodedApp, status, null, inputs, null, contextRecord.getConfig(), null, null);
+    return new Job(jobRecord.getExternalId(), jobRecord.getParentId(), jobRecord.getRootId(), jobRecord.getId(), encodedApp, status, null, inputs, null, contextRecord.getConfig(), null, null);
   }
 
   private Map<String, Object> processVariables(DAGNode node, List<VariableRecord> inputVariables, String encodedApp, Job newJob) throws BindingException {

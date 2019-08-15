@@ -21,6 +21,8 @@ public abstract class JobRecordRepository {
 
   public abstract List<JobRecord> get(UUID rootId);
 
+  public abstract List<JobRecord> get();
+
   public abstract JobRecord getRoot(UUID rootId);
 
   public abstract JobRecord get(String id, UUID rootId);

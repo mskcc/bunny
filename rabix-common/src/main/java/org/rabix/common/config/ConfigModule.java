@@ -1,21 +1,16 @@
 package org.rabix.common.config;
 
-import java.io.File;
-import java.util.Iterator;
-import java.util.Map;
-
-import org.apache.commons.configuration.CombinedConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.MapConfiguration;
-import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.commons.configuration.tree.UnionCombiner;
-import org.apache.commons.io.FileUtils;
-
 import com.google.common.base.Preconditions;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import org.apache.commons.configuration.*;
+import org.apache.commons.configuration.tree.UnionCombiner;
+import org.apache.commons.io.FileUtils;
+
+import java.io.File;
+import java.util.Iterator;
+import java.util.Map;
 
 public class ConfigModule extends AbstractModule {
 

@@ -1,21 +1,6 @@
 package org.rabix.executor.handler.impl;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
-
-import javax.inject.Inject;
-
+import com.google.inject.assistedinject.Assisted;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.rabix.backend.api.callback.WorkerStatusCallback;
@@ -60,7 +45,14 @@ import org.rabix.executor.service.JobDataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.inject.assistedinject.Assisted;
+import javax.inject.Inject;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
 
 public class JobHandlerImpl implements JobHandler {
 

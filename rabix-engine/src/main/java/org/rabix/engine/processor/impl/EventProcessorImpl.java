@@ -116,7 +116,12 @@ public class EventProcessorImpl implements EventProcessor {
         }
         return null;
       });
+
+      eventRepository.updateStatus(event.getEventGroupId(), EventRecord.Status.PROCESSED);
+      logger.debug("Event {} processed.", event);
     } catch (Exception e) {
+      eventRepository.updateStatus(event.getEventGroupId(), EventRecord.Status.FAILED);
+
       logger.error("EventProcessor failed to process event {}.", event, e);
       try {
         Job job = jobRepository.get(event.getContextId());

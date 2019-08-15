@@ -1,20 +1,15 @@
 package org.rabix.bindings.model;
 
+import com.fasterxml.jackson.annotation.*;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.rabix.bindings.json.JobValuesDeserializer;
+import org.rabix.common.helper.CloneHelper;
+
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-
-import org.rabix.bindings.json.JobValuesDeserializer;
-import org.rabix.common.helper.CloneHelper;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -24,6 +19,7 @@ public class Job implements Serializable {
    * 
    */
   private static final long serialVersionUID = -202012646416646107L;
+  public static final String LSF_JOB_ID = "LSFId";
 
   public static enum JobStatus {
     PENDING,

@@ -1,19 +1,9 @@
 package org.rabix.executor.rest;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.EnumSet;
-
-import javax.servlet.DispatcherType;
-import javax.ws.rs.ApplicationPath;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
+import com.google.inject.*;
+import com.google.inject.servlet.GuiceFilter;
+import com.google.inject.servlet.ServletModule;
+import com.squarespace.jersey2.guice.BootstrapUtils;
 import org.apache.commons.configuration.Configuration;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.FilterHolder;
@@ -46,14 +36,14 @@ import org.rabix.executor.service.impl.WorkerServiceImpl.LocalWorker;
 import org.rabix.transport.backend.Backend;
 import org.rabix.transport.backend.impl.BackendRabbitMQ;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Inject;
-import com.google.inject.Injector;
-import com.google.inject.Key;
-import com.google.inject.Scopes;
-import com.google.inject.servlet.GuiceFilter;
-import com.google.inject.servlet.ServletModule;
-import com.squarespace.jersey2.guice.BootstrapUtils;
+import javax.servlet.DispatcherType;
+import javax.ws.rs.ApplicationPath;
+import javax.ws.rs.client.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.File;
+import java.util.Arrays;
+import java.util.EnumSet;
 
 public class ServerBuilder {
 
