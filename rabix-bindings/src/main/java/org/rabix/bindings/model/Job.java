@@ -58,7 +58,7 @@ public class Job implements Serializable {
   
   @JsonProperty("visiblePorts")
   private Set<String> visiblePorts;
-  
+
   public Job(String app, Map<String, Object> inputs) {
     this(null, null, generateId(), null, app, JobStatus.PENDING, null, inputs, null, null, null, null);
   }
@@ -179,7 +179,7 @@ public class Job implements Serializable {
   public Set<String> getVisiblePorts() {
     return visiblePorts;
   }
-  
+
   @SuppressWarnings("unchecked")
   public Map<String, Object> getInputs() {
     try {

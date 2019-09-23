@@ -110,7 +110,12 @@ public class JobHandlerImpl implements JobHandler {
     logger.info("Start command line tool for id={}", job.getId());
     try {
       job = statusCallback.onJobReady(job);
-      /*
+
+      Bindings bindings = BindingsFactory.create(job);
+      Map<String, Object> commonInputs = (Map<String, Object>) bindings.translateToCommon(job.getInputs());
+      job = Job.cloneWithInputs(job, commonInputs);
+
+        /*
        * If cache service and mock worker are enabled,
        * executor will simply pass the results before binding
        * or checking on inputs.
@@ -129,7 +134,6 @@ public class JobHandlerImpl implements JobHandler {
         }
       }
 
-      Bindings bindings = BindingsFactory.create(job);
 
       job = bindings.preprocess(job, workingDir, null);
 

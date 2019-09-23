@@ -1,8 +1,7 @@
 package org.rabix.engine.processor.handler.impl;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import org.rabix.bindings.model.LinkMerge;
 import org.rabix.bindings.model.dag.DAGLinkPort.LinkPortType;
 import org.rabix.bindings.model.dag.DAGNode;
@@ -13,19 +12,15 @@ import org.rabix.engine.event.impl.JobStatusEvent;
 import org.rabix.engine.processor.EventProcessor;
 import org.rabix.engine.processor.handler.EventHandler;
 import org.rabix.engine.processor.handler.EventHandlerException;
-import org.rabix.engine.service.DAGNodeService;
-import org.rabix.engine.service.IntermediaryFilesService;
-import org.rabix.engine.service.JobRecordService;
-import org.rabix.engine.service.LinkRecordService;
-import org.rabix.engine.service.VariableRecordService;
+import org.rabix.engine.service.*;
 import org.rabix.engine.store.model.JobRecord;
 import org.rabix.engine.store.model.LinkRecord;
 import org.rabix.engine.store.model.VariableRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Handles {@link InputUpdateEvent} events.
@@ -35,7 +30,7 @@ public class InputEventHandler implements EventHandler<InputUpdateEvent> {
   @Inject
   private DAGNodeService dagNodeService;
   @Inject
-  private JobRecordService jobService;
+  private JobRecordService jobRecordService;
   @Inject
   private LinkRecordService linkService;
   @Inject
@@ -55,7 +50,7 @@ public class InputEventHandler implements EventHandler<InputUpdateEvent> {
   @Override
   public void handle(InputUpdateEvent event, EventHandlingMode mode) throws EventHandlerException {
     logger.debug(event.toString());
-    JobRecord job = jobService.find(event.getJobId(), event.getContextId());
+    JobRecord job = jobRecordService.find(event.getJobId(), event.getContextId());
 
     if (job == null) {
       logger.info("Possible stale message. Job {} for root {} doesn't exist.", event.getJobId(), event.getContextId());
@@ -75,15 +70,15 @@ public class InputEventHandler implements EventHandler<InputUpdateEvent> {
       if (job.isBlocking() || (job.getInputPortIncoming(event.getPortId()) > 1)) {
         return; // guard: should not happen
       } else {
-        jobService.resetInputPortCounter(job, event.getNumberOfScattered(), event.getPortId());
+        jobRecordService.resetInputPortCounter(job, event.getNumberOfScattered(), event.getPortId());
       }
     } else if ((job.getInputPortIncoming(event.getPortId()) > 1) && job.isScatterPort(event.getPortId())
         && !LinkMerge.isBlocking(node.getLinkMerge(event.getPortId(), LinkPortType.INPUT))) {
-      jobService.resetOutputPortCounters(job, job.getInputPortIncoming(event.getPortId()));
+      jobRecordService.resetOutputPortCounters(job, job.getInputPortIncoming(event.getPortId()));
     }
 
     variableService.addValue(variable, event.getValue(), event.getPosition(), false);
-    jobService.decrementPortCounter(job, event.getPortId(), LinkPortType.INPUT);
+    jobRecordService.decrementPortCounter(job, event.getPortId(), LinkPortType.INPUT);
 
     // scatter
     if (!job.isBlocking() && !job.isScattered()) {
@@ -119,7 +114,7 @@ public class InputEventHandler implements EventHandler<InputUpdateEvent> {
   }
 
   private void update(JobRecord job, VariableRecord variable) {
-    jobService.update(job);
+    jobRecordService.update(job);
     variableService.update(variable);
   }
 

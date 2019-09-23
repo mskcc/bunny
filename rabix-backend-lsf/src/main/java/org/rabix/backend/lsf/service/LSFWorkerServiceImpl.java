@@ -20,6 +20,7 @@ import org.rabix.bindings.BindingException;
 import org.rabix.bindings.Bindings;
 import org.rabix.bindings.BindingsFactory;
 import org.rabix.bindings.CommandLine;
+import org.rabix.bindings.helper.ErrorFileHelper;
 import org.rabix.bindings.helper.FileValueHelper;
 import org.rabix.bindings.mapper.FileMappingException;
 import org.rabix.bindings.mapper.FilePathMapper;
@@ -34,9 +35,11 @@ import org.rabix.engine.store.repository.JobRecordRepository;
 import org.rabix.engine.store.repository.JobRepository;
 import org.rabix.engine.store.repository.LSFJobRepository;
 import org.rabix.executor.ExecutorException;
+import org.rabix.executor.config.FileConfiguration;
 import org.rabix.executor.config.StorageConfiguration;
 import org.rabix.executor.container.impl.DockerContainerHandler;
 import org.rabix.executor.pathmapper.InputFileMapper;
+import org.rabix.executor.service.CacheService;
 import org.rabix.transport.backend.Backend;
 import org.rabix.transport.backend.impl.BackendActiveMQ;
 import org.rabix.transport.backend.impl.BackendLocal;
@@ -64,8 +67,9 @@ import java.util.stream.Collectors;
 public class LSFWorkerServiceImpl implements WorkerService {
 
     public final static String TYPE = "LSF";
-    public static final String SINGULARITY_MOUNT_DELIMITER = ",";
+    private static final String SINGULARITY_MOUNT_DELIMITER = ",";
     private final static Logger logger = LoggerFactory.getLogger(LSFWorkerServiceImpl.class);
+    public static final String ERR_FILE_PATH = "ERR_FILE_PATH";
     private static String imagePath = "";
     @Inject
     private JobRecordRepository jobRecordRepository;
@@ -86,6 +90,12 @@ public class LSFWorkerServiceImpl implements WorkerService {
     private FilePathMapper inputFileMapper;
     @Inject
     private LSFJobRepository lsfJobRepository;
+
+    @Inject
+    private FileConfiguration fileConfiguration;
+
+    @Inject
+    private CacheService cacheService;
 
     public static String getImagePath() {
         return imagePath;
@@ -110,6 +120,8 @@ public class LSFWorkerServiceImpl implements WorkerService {
 
         return combinedRequirements;
     }
+
+
 
     @Override
     public void start(Backend backend) {
@@ -147,13 +159,12 @@ public class LSFWorkerServiceImpl implements WorkerService {
 
                 batch.readJobInfo(jobInfoEntry -> {
                     jobInfo = jobInfoEntry;
-                    logger.debug("LSF Job Info returned {}", jobInfo);
                     return false;
                 }, lsfJobId, null, null, null, null, LSBOpenJobInfo.ALL_JOB);
 
                 if ((jobInfo.status & LSBJobStates.JOB_STAT_DONE) == LSBJobStates.JOB_STAT_DONE) {
                     try {
-                        success(entry.getKey());
+                        success(entry.getKey(), true);
                     } catch (BindingException e) {
                         fail(entry.getKey());
                     } finally {
@@ -182,12 +193,14 @@ public class LSFWorkerServiceImpl implements WorkerService {
         return notCompletedNorFailedJobs;
     }
 
-    private Job success(Job job) throws BindingException {
+    private Job success(Job job, boolean shouldPostProcess) throws BindingException {
         job = Job.cloneWithStatus(job, JobStatus.COMPLETED);
         Bindings bindings = BindingsFactory.create(job);
-        job = bindings.postprocess(job, storageConfig.getWorkingDir(job), null, null);
 
+        if(shouldPostProcess)
+            job = bindings.postprocess(job, storageConfig.getWorkingDir(job), null, null);
         job = Job.cloneWithMessage(job, "Success");
+
         try {
             job = statusCallback.onJobCompleted(job);
         } catch (WorkerStatusCallbackException e1) {
@@ -212,53 +225,81 @@ public class LSFWorkerServiceImpl implements WorkerService {
     public void submit(Job job, UUID rootId) {
         try {
             Bindings bindings = BindingsFactory.create(job);
+            job = bindings.preprocess(job, storageConfig.getWorkingDir(job), (path, config) -> path);
 
-            if (bindings.isSelfExecutable(job)) {
-                logger.info("Job {} is self executable. It won't be submitted to LSF", job.getId());
-                job = success(job);
-            } else {
-                SubmitRequest submitRequest = new SubmitRequest();
-                try {
-                    if (isAlreadySubmitted(job)) {
-                        logger.info("Job {} (root: {}) has already been submitted to LSF. It won't be submitted again",
-                                job.getId(), rootId);
-                        return;
-                    }
+            if (cacheService.isCacheEnabled()) {
+                Map<String, Object> cachedOutputs = cacheService.find(job);
+                if (!cachedOutputs.isEmpty()) {
+                    job = Job.cloneWithOutputs(job, cachedOutputs);
 
-                    logger.info("Submitting job {} to LSF", job.getId());
-
-                    configureLsfAppName();
-
-                    List<Requirement> combinedRequirements = getCombinedRequirements(job);
-                    resolveDockerRequirement(combinedRequirements, job);
-
-                    job = bindings.preprocess(job, storageConfig.getWorkingDir(job), (path, config) -> path);
-
-                    //@TODO delete after silo can pull images
-                    if (StringUtils.isEmpty(imagePath))
-                        imagePath = configuration.getString("docker.image.path");
-
-                    configureCommand(job, bindings, submitRequest, combinedRequirements);
-                    configureWorkingDir(job, submitRequest);
-                    configureErrFile(job, bindings, submitRequest);
-                    configureResourceRequirements(job, bindings, submitRequest);
-                    submitRequest.jobName = String.valueOf(job.getId());
-
-                    configureTerminationTime(submitRequest, job);
-
-                    job = stageFileRequirements(combinedRequirements, job);
-                } catch (Exception e) {
-                    logger.error(String.format("Error while submitting a job %s", job), e);
-                    fail(job);
-                    return;
+                    logger.debug("Cached outputs found. Those outputs will be used for current job.");
+                    success(job, false);
+                } else {
+                    job = processJob(job, rootId);
                 }
-
-                submitAndGetLsfReply(job, submitRequest);
-            }
-        } catch (BindingException e) {
+            } else
+                processJob(job, rootId);
+        } catch (Exception e) {
             e.printStackTrace();
             fail(job);
             return;
+        }
+    }
+
+    private Job processJob(Job job, UUID rootId) throws BindingException {
+        Bindings bindings = BindingsFactory.create(job);
+
+        if (bindings.isSelfExecutable(job)) {
+            logger.info("Job {} is self executable. It won't be submitted to LSF", job.getId());
+            job = success(job, true);
+        } else {
+            SubmitRequest submitRequest = new SubmitRequest();
+            try {
+                if (isAlreadySubmitted(job)) {
+                    logger.info("Job {} (root: {}) has already been submitted to LSF. It won't be submitted " +
+                                    "again",
+
+                            job.getId(), rootId);
+                    return job;
+                }
+
+                logger.info("Submitting job {} to LSF", job.getId());
+
+                configureLsfAppName();
+
+                List<Requirement> combinedRequirements = getCombinedRequirements(job);
+                resolveDockerRequirement(combinedRequirements, job);
+
+                job = bindings.preprocess(job, storageConfig.getWorkingDir(job), (path, config) -> path);
+
+                configureCommand(job, bindings, submitRequest, combinedRequirements);
+                configureWorkingDir(job, submitRequest);
+                configureErrFile(job, bindings, submitRequest);
+                configureResourceRequirements(job, bindings, submitRequest);
+                submitRequest.jobName = String.valueOf(job.getId());
+                configureSla(submitRequest);
+
+                configureTerminationTime(submitRequest, job);
+
+                job = stageFileRequirements(combinedRequirements, job);
+            } catch (Exception e) {
+                logger.error(String.format("Error while submitting a job %s", job), e);
+                fail(job);
+                return job;
+            }
+
+            submitAndGetLsfReply(job, submitRequest);
+        }
+
+        return job;
+    }
+
+    private void configureSla(SubmitRequest submitRequest) {
+        String slaName = configuration.getString("lsf.sla.name");
+        if(!StringUtils.isEmpty(slaName)) {
+            logger.debug("Configuring SLA {}", slaName);
+            submitRequest.sla = slaName;
+            submitRequest.options2 |= LSBSubmitOptions2.SUB2_SLA;
         }
     }
 
@@ -277,7 +318,6 @@ public class LSFWorkerServiceImpl implements WorkerService {
             combinedRequirements) throws BindingException {
         StringBuilder envs = getEnvironmentVariables(combinedRequirements);
         String singularityLocation = configuration.getString("singularity.location");
-
 
         String command = getCommand(job, bindings);
         String binds = getBinds(job, combinedRequirements);
@@ -374,10 +414,10 @@ public class LSFWorkerServiceImpl implements WorkerService {
 
     private void configureErrFile(Job job, Bindings bindings, SubmitRequest submitRequest) throws BindingException {
         submitRequest.options = LSBSubmitOptions.SUB_ERR_FILE;
-        submitRequest.errFile = bindings.getStandardErrorLog(job);
+        String errorFilePath = ErrorFileHelper.getErrorFilePath(job);
+        submitRequest.errFile = errorFilePath;
 
-        if (submitRequest.errFile == null)
-            submitRequest.errFile = "job.stderr.log";
+        job.getConfig().put(ERR_FILE_PATH, submitRequest.errFile);
     }
 
     private String getCommand(Job job, Bindings bindings) throws BindingException {
@@ -405,7 +445,8 @@ public class LSFWorkerServiceImpl implements WorkerService {
                 resReq = "mem=" + getRecalculatedRequirement(jobResourceRequirement.getMemMinMB());
             }
             if (jobResourceRequirement.getDiskSpaceMinMB() != null)
-                resReq = (resReq != null ? ", " : "") + "swp=" + getRecalculatedRequirement(jobResourceRequirement.getDiskSpaceMinMB());
+                resReq = (resReq != null ? ", " : "") + "swp=" + getRecalculatedRequirement(jobResourceRequirement
+                        .getDiskSpaceMinMB());
 
             if (resReq != null)
                 resReq = "rusage[" + resReq + "]";
@@ -502,8 +543,7 @@ public class LSFWorkerServiceImpl implements WorkerService {
 
     private String configureDockerImgLocation(Job job, String dockerPull) throws IOException {
         String dockerImgLocation = configuration.getString("docker.images.location");
-//    String jobDockerImgLocation = String.format("%s/%s", dockerImgLocation, job.getId());
-        String jobDockerImgLocation = dockerImgLocation;
+        String jobDockerImgLocation = String.format("%s/%s", dockerImgLocation, job.getId());
         logger.debug("Docker image location {}", jobDockerImgLocation);
 
         Files.createDirectories(Paths.get(jobDockerImgLocation));

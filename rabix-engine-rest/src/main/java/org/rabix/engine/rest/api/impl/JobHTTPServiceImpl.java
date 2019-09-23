@@ -1,26 +1,18 @@
 package org.rabix.engine.rest.api.impl;
 
-import java.util.Collections;
-import java.util.UUID;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-
+import com.google.inject.Inject;
 import org.rabix.bindings.model.Job;
 import org.rabix.bindings.model.Job.JobStatus;
 import org.rabix.engine.rest.api.JobHTTPService;
 import org.rabix.engine.service.JobService;
 import org.rabix.engine.service.JobServiceException;
 
-import com.google.inject.Inject;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import java.util.Collections;
+import java.util.UUID;
 
 @Produces(MediaType.APPLICATION_JSON)
 @Path("/v0/engine/jobs")
@@ -43,7 +35,7 @@ public class JobHTTPServiceImpl implements JobHTTPService {
         }
         return ok("success");
       }
-      return ok(jobService.start(job, null));
+      return ok(jobService.start(job, job.getConfig()));
     } catch (Exception e) {
       return error();
     }

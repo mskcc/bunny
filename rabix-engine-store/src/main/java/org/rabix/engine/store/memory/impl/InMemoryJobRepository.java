@@ -148,11 +148,24 @@ public class InMemoryJobRepository implements JobRepository {
   @Override
   public Set<Job> getByRootId(UUID rootId) {
     Set<Job> rootJobs = new HashSet<>();
+    if(!jobRepository.containsKey(rootId))
+      return rootJobs;
     Map<UUID, JobEntity> jobs = jobRepository.get(rootId);
     for(JobEntity job: jobs.values()) {
       rootJobs.add(job.getJob());
     }
     return rootJobs;
+  }
+
+  @Override
+  public Set<Job> getCompletedJobsByRootIdAndName(UUID rootId, String name) {
+    Set<Job> byRootId = getByRootId(rootId);
+    Set<Job> completedJobs = byRootId.stream()
+            .filter(j -> j.getName().equals(name))
+            .filter(j -> j.getStatus() == JobStatus.COMPLETED)
+            .collect(Collectors.toSet());
+
+    return completedJobs;
   }
 
   @Override
@@ -259,5 +272,14 @@ public class InMemoryJobRepository implements JobRepository {
             .flatMap(map -> map.values().stream())
             .filter(value -> value.getJob().getStatus() == status)
             .collect(Collectors.toSet());
+  }
+
+  @Override
+  public Set<Job> getByRootIdAndName(UUID rootId, String name) {
+    Set<Job> jobs = getByRootId(rootId).stream()
+            .filter(j -> j.getName().equals(name))
+            .collect(Collectors.toSet());
+
+    return jobs;
   }
 }

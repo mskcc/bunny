@@ -155,7 +155,8 @@ public class JobServiceImpl implements JobService {
         updatedJob = Job.cloneWithConfig(updatedJob, config);
         jobRepository.insert(updatedJob, updatedJob.getRootId(), null);
 
-        InitEvent initEvent = new InitEvent(rootId, updatedJob.getInputs(), updatedJob.getRootId(), updatedJob.getConfig(), dagHash, InternalSchemaHelper.ROOT_NAME);
+        Map<String, Object> inputs = (Map<String, Object>) bindings.translateToCommon(updatedJob.getInputs());
+        InitEvent initEvent = new InitEvent(rootId, inputs, updatedJob.getRootId(), updatedJob.getConfig(), dagHash, InternalSchemaHelper.ROOT_NAME);
         eventProcessor.persist(initEvent);
 
         eventWrapper.set(initEvent);

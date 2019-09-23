@@ -1,6 +1,9 @@
 package org.rabix.executor;
 
+import com.google.inject.Scopes;
+import com.google.inject.assistedinject.FactoryModuleBuilder;
 import org.apache.commons.configuration.Configuration;
+import org.rabix.DbCacheService;
 import org.rabix.backend.api.BackendModule;
 import org.rabix.backend.api.WorkerService;
 import org.rabix.common.config.ConfigModule;
@@ -14,15 +17,10 @@ import org.rabix.executor.handler.impl.JobHandlerImpl;
 import org.rabix.executor.service.CacheService;
 import org.rabix.executor.service.JobDataService;
 import org.rabix.executor.service.JobFitter;
-import org.rabix.executor.service.impl.CacheServiceImpl;
-import org.rabix.executor.service.impl.JobDataServiceImpl;
-import org.rabix.executor.service.impl.JobFitterImpl;
-import org.rabix.executor.service.impl.MockWorkerServiceImpl;
-import org.rabix.executor.service.impl.WorkerServiceImpl;
+import org.rabix.executor.service.impl.*;
 import org.rabix.executor.service.impl.WorkerServiceImpl.LocalWorker;
 
-import com.google.inject.Scopes;
-import com.google.inject.assistedinject.FactoryModuleBuilder;
+import java.util.Objects;
 
 public class ExecutorModule extends BackendModule {
 
@@ -60,7 +58,11 @@ public class ExecutorModule extends BackendModule {
     bind(JobDataService.class).to(JobDataServiceImpl.class).in(Scopes.SINGLETON);
     bind(JobHandlerCommandDispatcher.class).in(Scopes.SINGLETON);
     bind(ContainerHandlerFactory.class).in(Scopes.SINGLETON);
-    bind(CacheService.class).to(CacheServiceImpl.class).in(Scopes.SINGLETON);
+
+    if(Objects.equals(configuration.getString("cache.type"), "DB"))
+      bind(CacheService.class).to(DbCacheService.class).in(Scopes.SINGLETON);
+    else
+      bind(CacheService.class).to(FileCacheService.class).in(Scopes.SINGLETON);
   }
 
 }
