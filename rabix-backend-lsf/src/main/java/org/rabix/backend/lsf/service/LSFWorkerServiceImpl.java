@@ -274,7 +274,7 @@ public class LSFWorkerServiceImpl implements WorkerService {
 
                 configureCommand(job, bindings, submitRequest, combinedRequirements);
                 configureWorkingDir(job, submitRequest);
-                configureErrFile(job, bindings, submitRequest);
+                configureErrFile(job, submitRequest);
                 configureResourceRequirements(job, bindings, submitRequest);
                 submitRequest.jobName = String.valueOf(job.getId());
                 configureSla(submitRequest);
@@ -412,11 +412,12 @@ public class LSFWorkerServiceImpl implements WorkerService {
         }
     }
 
-    private void configureErrFile(Job job, Bindings bindings, SubmitRequest submitRequest) throws BindingException {
+    private void configureErrFile(Job job, SubmitRequest submitRequest) throws BindingException {
         submitRequest.options = LSBSubmitOptions.SUB_ERR_FILE;
-        String errorFilePath = ErrorFileHelper.getErrorFilePath(job);
-        submitRequest.errFile = errorFilePath;
+        submitRequest.errFile = ErrorFileHelper.getErrorFilePath(job);
 
+        if(job.getConfig() == null)
+            job = Job.cloneWithConfig(job, new HashMap<>());
         job.getConfig().put(ERR_FILE_PATH, submitRequest.errFile);
     }
 
