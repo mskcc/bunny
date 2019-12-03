@@ -27,9 +27,8 @@ import java.util.Map.Entry;
 
 public class CWLCommandLineBuilder implements ProtocolCommandLineBuilder {
 
-  private final static Logger logger = LoggerFactory.getLogger(CWLCommandLineBuilder.class);
-
   public final static String SHELL_QUOTE_KEY = "shellQuote";
+  private final static Logger logger = LoggerFactory.getLogger(CWLCommandLineBuilder.class);
 
     @Override
     public CommandLine buildCommandLineObject(Job job, File workingDir, FilePathMapper filePathMapper) throws BindingException {
@@ -186,7 +185,12 @@ public class CWLCommandLineBuilder implements ProtocolCommandLineBuilder {
   private List<CWLCommandLinePart> buildRecordCommandLinePart(CWLJob job, Object value, Object schema, FilePathMapper filePathMapper) throws BindingException {
     List<CWLCommandLinePart> result = new ArrayList<CWLCommandLinePart>();
     Object schemaCopy = !CWLSchemaHelper.isRequired(schema) ? CWLSchemaHelper.getSchemaFromNonRequired(schema) : schema;
-    List<Object> fields = (List<Object>) CWLSchemaHelper.getFields(schemaCopy);
+    Object fieldsObj = CWLSchemaHelper.getFields(schemaCopy);
+
+    if (!(fieldsObj instanceof List))
+      fieldsObj = Arrays.asList(CWLSchemaHelper.getFields(schemaCopy));
+
+    List<Object> fields = (List<Object>) fieldsObj;
     for (Object sch : fields) {
       if (CWLSchemaHelper.isRecordFromSchema(sch) && CWLSchemaHelper.getInputBinding(sch) == null) {
         result.addAll(buildRecordCommandLinePart(job, value, sch, filePathMapper));

@@ -19,8 +19,8 @@ import java.util.stream.Collectors;
 
 //TODO think of a place to put it
 public class DbCacheService implements CacheService {
+    public static final String CACHED_ID = "cachedId";
     private final static Logger logger = LoggerFactory.getLogger(DbCacheService.class);
-
     @Inject
     private Configuration configuration;
 
@@ -43,10 +43,10 @@ public class DbCacheService implements CacheService {
         UUID cachedUUID = null;
         try {
             Job rootJob = jobRepository.get(job.getRootId());
-            if(rootJob == null || rootJob.getConfig() == null || !rootJob.getConfig().containsKey("cachedId"))
+            if (rootJob == null || rootJob.getConfig() == null || !rootJob.getConfig().containsKey(CACHED_ID))
                 return Collections.emptyMap();
 
-            String cachedId = String.valueOf(rootJob.getConfig().getOrDefault("cachedId", ""));
+            String cachedId = String.valueOf(rootJob.getConfig().getOrDefault(CACHED_ID, ""));
             if (StringUtils.isEmpty(cachedId)) {
                 logger.debug("Cached id provided is empty. Outputs won't be collected from cached jobs");
                 return Collections.emptyMap();

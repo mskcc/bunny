@@ -1,19 +1,7 @@
 package org.rabix.bindings.cwl;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.commons.collections.CollectionUtils;
-import org.rabix.bindings.cwl.bean.CWLCommandLineTool;
-import org.rabix.bindings.cwl.bean.CWLDataLink;
-import org.rabix.bindings.cwl.bean.CWLInputPort;
-import org.rabix.bindings.cwl.bean.CWLJob;
-import org.rabix.bindings.cwl.bean.CWLJobApp;
-import org.rabix.bindings.cwl.bean.CWLOutputPort;
-import org.rabix.bindings.cwl.bean.CWLStep;
-import org.rabix.bindings.cwl.bean.CWLWorkflow;
+import org.rabix.bindings.cwl.bean.*;
 import org.rabix.bindings.cwl.bean.resource.CWLResource;
 import org.rabix.bindings.cwl.helper.CWLBindingHelper;
 import org.rabix.bindings.cwl.helper.CWLSchemaHelper;
@@ -22,6 +10,11 @@ import org.rabix.bindings.model.LinkMerge;
 import org.rabix.common.helper.InternalSchemaHelper;
 import org.rabix.common.json.processor.BeanProcessor;
 import org.rabix.common.json.processor.BeanProcessorException;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * {@link BeanProcessor} used for Job processing. It populates some additional fields.
@@ -267,7 +260,7 @@ public class CWLJobProcessor implements BeanProcessor<CWLJob> {
       if (job.getId().contains(DOT_SEPARATOR)) {
         String mod = job.getId().substring(job.getId().indexOf(DOT_SEPARATOR) + 1);
         if (strip) {
-          mod = mod.substring(mod.indexOf(DOT_SEPARATOR) + 1);
+          mod = mod.substring(mod.lastIndexOf(DOT_SEPARATOR) + 1);
         }
         scatter = mod + SLASH_SEPARATOR + CWLSchemaHelper.normalizeId(port.getId());
       } else {

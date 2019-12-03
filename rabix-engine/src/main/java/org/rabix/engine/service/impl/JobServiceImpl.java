@@ -265,7 +265,7 @@ public class JobServiceImpl implements JobService {
     } catch (EngineStatusCallbackException e) {
       logger.error("Engine status callback failed", e);
     } finally {
-      jobRepository.deleteByRootIds(Sets.newHashSet(failedJob.getRootId()));
+//      jobRepository.deleteByRootIds(Sets.newHashSet(failedJob.getRootId()));
     }
   }
 

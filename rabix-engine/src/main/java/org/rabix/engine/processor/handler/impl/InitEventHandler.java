@@ -53,11 +53,12 @@ public class InitEventHandler implements EventHandler<InitEvent> {
     contextRecordService.create(context);
 
     DAGNode node = dagNodeService.get(InternalSchemaHelper.ROOT_NAME, event.getContextId(), event.getDagHash());
-    JobRecord job = new JobRecord(event.getContextId(), node.getId(), event.getContextId(), null, JobRecord.JobState.PENDING, node instanceof DAGContainer, false, true, false, event.getDagHash());
+    JobRecord jobRecord = new JobRecord(event.getContextId(), node.getId(), event.getContextId(), null, JobRecord
+            .JobState.PENDING, node instanceof DAGContainer, false, true, false, event.getDagHash());
 
-    jobRecordService.create(job);
-    if (job.isRoot() && mode != EventHandlingMode.REPLAY) {
-      JobStatsRecord jobStatsRecord = jobStatsRecordService.findOrCreate(job.getRootId());
+    jobRecordService.create(jobRecord);
+    if (jobRecord.isRoot() && mode != EventHandlingMode.REPLAY) {
+      JobStatsRecord jobStatsRecord = jobStatsRecordService.findOrCreate(jobRecord.getRootId());
       if (node instanceof DAGContainer) {
         jobStatsRecord.setTotal(((DAGContainer) node).getChildren().size());
       } else {
@@ -67,8 +68,8 @@ public class InitEventHandler implements EventHandler<InitEvent> {
     }
 
     for (DAGLinkPort inputPort : node.getInputPorts()) {
-      if (job.getState().equals(JobRecord.JobState.PENDING)) {
-        jobRecordService.incrementPortCounter(job, inputPort, LinkPortType.INPUT);
+      if (jobRecord.getState().equals(JobRecord.JobState.PENDING)) {
+        jobRecordService.incrementPortCounter(jobRecord, inputPort, LinkPortType.INPUT);
       }
       Object defaultValue = node.getDefaults().get(inputPort.getId());
       VariableRecord variable = new VariableRecord(event.getContextId(), node.getId(), inputPort.getId(), LinkPortType.INPUT, defaultValue, node.getLinkMerge(inputPort.getId(), inputPort.getType()));
@@ -77,7 +78,7 @@ public class InitEventHandler implements EventHandler<InitEvent> {
 
     for (DAGLinkPort outputPort : node.getOutputPorts()) {
       if(!node.getType().equals(DAGNodeType.CONTAINER))
-        jobRecordService.incrementPortCounter(job, outputPort, LinkPortType.OUTPUT);
+        jobRecordService.incrementPortCounter(jobRecord, outputPort, LinkPortType.OUTPUT);
 
       VariableRecord variable = new VariableRecord(event.getContextId(), node.getId(), outputPort.getId(), LinkPortType.OUTPUT, null, node.getLinkMerge(outputPort.getId(), outputPort.getType()));
       variableRecordService.create(variable);
@@ -85,7 +86,8 @@ public class InitEventHandler implements EventHandler<InitEvent> {
 
     if (node.getInputPorts().isEmpty()) {
       // the node is ready
-      eventProcessor.send(new JobStatusEvent(job.getId(), event.getContextId(), JobRecord.JobState.READY, event.getEventGroupId(), event.getProducedByNode()));
+      eventProcessor.send(new JobStatusEvent(jobRecord.getId(), event.getContextId(), JobRecord.JobState.READY, event
+              .getEventGroupId(), event.getProducedByNode()));
       return;
     }
 

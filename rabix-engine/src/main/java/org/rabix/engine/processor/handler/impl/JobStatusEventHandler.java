@@ -112,8 +112,11 @@ public class JobStatusEventHandler implements EventHandler<JobStatusEvent> {
 
     switch (event.getState()) {
       case READY:
-        ready(jobRecord, event);
+        JobRecord ready = ready(jobRecord, event);
+        jobRecord = jobRecordService.find(event.getJobId(), event.getContextId());
+        jobRecord.setState(ready.getState());
         jobRecordService.update(jobRecord);
+
         if (jobRecord.getState().equals(JobRecord.JobState.COMPLETED)) {
           break;
         }
@@ -292,7 +295,7 @@ public class JobStatusEventHandler implements EventHandler<JobStatusEvent> {
   /*
    * Job is ready
    */
-  private void ready(JobRecord jobRecord, Event event) throws EventHandlerException {
+  private JobRecord ready(JobRecord jobRecord, Event event) throws EventHandlerException {
     jobRecord.setState(JobRecord.JobState.READY);
 
     UUID rootId = event.getContextId();
@@ -306,7 +309,7 @@ public class JobStatusEventHandler implements EventHandler<JobStatusEvent> {
         scatterHelper.scatterPort(jobRecord, event, port, variableRecordService.getValue(variable), 1, null,
                 false, false);
         if (jobRecord.getScatterStrategy().skipScatter()) {
-          return;
+          return jobRecord;
         }
       }
     } else if (jobRecord.isContainer()) {
@@ -359,6 +362,8 @@ public class JobStatusEventHandler implements EventHandler<JobStatusEvent> {
         }
       }
     }
+
+    return jobRecord;
   }
 
   private void handleTransform(JobRecord job, DAGNode node) throws EventHandlerException {
@@ -505,26 +510,26 @@ public class JobStatusEventHandler implements EventHandler<JobStatusEvent> {
   /**
    * Handle links for roll-out
    */
-  private void handleLinkPort(JobRecord job, DAGLinkPort linkPort, boolean isSource) {
+  private void handleLinkPort(JobRecord jobRecord, DAGLinkPort linkPort, boolean isSource) {
     if (linkPort.getType().equals(LinkPortType.INPUT)) {
-      if (job.getState().equals(JobRecord.JobState.PENDING)) {
-        jobRecordService.incrementPortCounter(job, linkPort, LinkPortType.INPUT);
-        jobRecordService.increaseInputPortIncoming(job, linkPort.getId());
+      if (jobRecord.getState().equals(JobRecord.JobState.PENDING)) {
+        jobRecordService.incrementPortCounter(jobRecord, linkPort, LinkPortType.INPUT);
+        jobRecordService.increaseInputPortIncoming(jobRecord, linkPort.getId());
 
-        if (job.getInputPortIncoming(linkPort.getId()) > 1) {
+        if (jobRecord.getInputPortIncoming(linkPort.getId()) > 1) {
           if (LinkMerge.isBlocking(linkPort.getLinkMerge())) {
-            job.setBlocking(true);
+            jobRecord.setBlocking(true);
           }
         }
       }
     } else {
-      jobRecordService.increaseOutputPortIncoming(job, linkPort.getId());
-      jobRecordService.incrementPortCounter(job, linkPort, LinkPortType.OUTPUT);
+      jobRecordService.increaseOutputPortIncoming(jobRecord, linkPort.getId());
+      jobRecordService.incrementPortCounter(jobRecord, linkPort, LinkPortType.OUTPUT);
       if (isSource) {
-        job.getOutputCounter(linkPort.getId()).updatedAsSource(1);
+        jobRecord.getOutputCounter(linkPort.getId()).updatedAsSource(1);
       }
     }
-    jobRecordService.update(job);
+    jobRecordService.update(jobRecord);
   }
 
 }

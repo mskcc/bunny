@@ -1,24 +1,17 @@
 package org.rabix.bindings.cwl.helper;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.avro.Schema;
 import org.rabix.bindings.BindingException;
 import org.rabix.bindings.model.DataType;
 import org.rabix.common.helper.CloneHelper;
 import org.rabix.common.helper.JSONHelper;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import java.util.*;
 
 public class CWLSchemaHelper extends CWLBeanHelper {
 
@@ -49,6 +42,15 @@ public class CWLSchemaHelper extends CWLBeanHelper {
   
   public static final String OPTIONAL_SHORTENED = "?";
   public static final String ARRAY_SHORTENED = "[]";
+  // this does not contain string, bytes, or fixed because the datum type
+  // doesn't necessarily determine the schema.
+  private static ImmutableMap<Schema.Type, Schema> PRIMITIVES = ImmutableMap.<Schema.Type, Schema>builder()
+          .put(Schema.Type.NULL, Schema.create(Schema.Type.NULL))
+          .put(Schema.Type.BOOLEAN, Schema.create(Schema.Type.BOOLEAN)).put(Schema.Type.INT, Schema.create(Schema
+                  .Type.INT))
+          .put(Schema.Type.LONG, Schema.create(Schema.Type.LONG)).put(Schema.Type.FLOAT, Schema.create(Schema.Type
+                  .FLOAT))
+          .put(Schema.Type.DOUBLE, Schema.create(Schema.Type.DOUBLE)).build();
   
   public static String normalizeId(String id) {
     if (id == null) {
@@ -102,7 +104,7 @@ public class CWLSchemaHelper extends CWLBeanHelper {
   public static boolean isFileFromSchema(Object schema) {
     return isTypeFromSchema(schema, TYPE_JOB_FILE);
   }
-  
+
   public static boolean isDirectoryFromSchema(Object schema) {
     return isTypeFromSchema(schema, TYPE_JOB_DIRECTORY);
   }
@@ -114,7 +116,7 @@ public class CWLSchemaHelper extends CWLBeanHelper {
     }
     return isTypeFromSchema(schema, TYPE_JOB_ARRAY);
   }
-  
+
   public static boolean isAnyFromSchema(Object schema) {
     return isTypeFromSchema(schema, TYPE_JOB_ANY);
   }
@@ -162,7 +164,7 @@ public class CWLSchemaHelper extends CWLBeanHelper {
       return clonedSchema;
     } catch (Exception e) {
       throw new RuntimeException("Failed to clone schema " + schema);
-    } 
+    }
   }
   
   public static String getOptionalShortenedType(Object schema) {
@@ -178,7 +180,7 @@ public class CWLSchemaHelper extends CWLBeanHelper {
     }
     return null;
   }
-  
+
   public static String getArrayShortenedType(Object schema) {
     if (schema == null) {
       return null;
@@ -197,7 +199,6 @@ public class CWLSchemaHelper extends CWLBeanHelper {
     return null;
   }
 
-  
   @SuppressWarnings("unchecked")
   private static boolean isTypeFromSchema(Object schema, String type) {
     Preconditions.checkNotNull(type);
@@ -241,7 +242,7 @@ public class CWLSchemaHelper extends CWLBeanHelper {
     }
     return false;
   }
-  
+
   public static boolean isDirectoryFromValue(Object valueObj) {
     if (valueObj == null) {
       return false;
@@ -257,7 +258,7 @@ public class CWLSchemaHelper extends CWLBeanHelper {
     return false;
   }
 
-  public static Map<?, ?> getField(String field, Object schema) {
+  public static Object getField(String field, Object schema) {
     Object fields = getFields(schema);
 
     Object fieldObj = null;
@@ -271,7 +272,7 @@ public class CWLSchemaHelper extends CWLBeanHelper {
         }
       }
     }
-    return (Map<?, ?>) fieldObj;
+    return fieldObj;
   }
 
   public static Object findSchema(List<Map<String, Object>> schemaDefs, Object schema) {
@@ -290,7 +291,7 @@ public class CWLSchemaHelper extends CWLBeanHelper {
 
   /**
    * Extract schema from schema definitions
-   * 
+   *
    * TODO implement AVRO validation for multiple matches
    */
   private static Object getSchemaDef(List<Map<String, Object>> schemaDefs, String name) {
@@ -323,13 +324,13 @@ public class CWLSchemaHelper extends CWLBeanHelper {
       recordSchemaList = new ArrayList<>();
       recordSchemaList.add(recordSchema);
     }
-    
+
     for (Object recordSchemaItem : recordSchemaList) {
       Object schemaObj = findSchema(schemaDefs, recordSchemaItem);
       if (schemaObj == null) {
         continue;
       }
-      
+
       return schemaObj;
     }
     return new HashMap<>();
@@ -387,7 +388,7 @@ public class CWLSchemaHelper extends CWLBeanHelper {
     }
     return new HashMap<>();
   }
-  
+
   public static String getLastInputId(String id) {
     if (id == null) {
       return null;
@@ -452,14 +453,6 @@ public class CWLSchemaHelper extends CWLBeanHelper {
 
     throw new BindingException(String.format("Cannot resolve union: %s not in %s", datum, schemas));
   }
-
-  // this does not contain string, bytes, or fixed because the datum type
-  // doesn't necessarily determine the schema.
-  private static ImmutableMap<Schema.Type, Schema> PRIMITIVES = ImmutableMap.<Schema.Type, Schema> builder()
-      .put(Schema.Type.NULL, Schema.create(Schema.Type.NULL))
-      .put(Schema.Type.BOOLEAN, Schema.create(Schema.Type.BOOLEAN)).put(Schema.Type.INT, Schema.create(Schema.Type.INT))
-      .put(Schema.Type.LONG, Schema.create(Schema.Type.LONG)).put(Schema.Type.FLOAT, Schema.create(Schema.Type.FLOAT))
-      .put(Schema.Type.DOUBLE, Schema.create(Schema.Type.DOUBLE)).build();
 
   private static Schema closestPrimitive(Set<Schema.Type> possible, Schema.Type... types) {
     for (Schema.Type type : types) {

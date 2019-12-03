@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public interface CacheService {
     Logger logger = LoggerFactory.getLogger(CacheService.class);
@@ -133,8 +134,8 @@ public interface CacheService {
      */
     static boolean checkFileEquals(FileValue value, FileValue cachedValue) {
         try {
-            if (cachedValue.getSize() != 0 &&
-                    !value.getSize().equals(cachedValue.getSize()))
+          //TODO check size after debugging
+          if (!Objects.equals(cachedValue.getName(), value.getName()))
                 return false;
             if (cachedValue.getChecksum() != null &&
                     !value.getChecksum().equals(cachedValue.getChecksum()))

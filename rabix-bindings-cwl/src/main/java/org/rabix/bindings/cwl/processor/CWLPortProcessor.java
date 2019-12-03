@@ -1,11 +1,5 @@
 package org.rabix.bindings.cwl.processor;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import org.rabix.bindings.cwl.bean.CWLInputPort;
 import org.rabix.bindings.cwl.bean.CWLJob;
 import org.rabix.bindings.cwl.bean.CWLOutputPort;
@@ -13,6 +7,12 @@ import org.rabix.bindings.cwl.helper.CWLSchemaHelper;
 import org.rabix.bindings.model.ApplicationPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class CWLPortProcessor {
 
@@ -84,7 +84,8 @@ public class CWLPortProcessor {
       Map<String, Object> result = new HashMap<>();
 
       for (Entry<String, Object> entry : ((Map<String, Object>) value).entrySet()) {
-        Map<?, ?> field = CWLSchemaHelper.getField(entry.getKey(), CWLSchemaHelper.getSchemaForRecordField(job.getApp().getSchemaDefs(), schema));
+        Object field = CWLSchemaHelper.getField(entry.getKey(), CWLSchemaHelper.getSchemaForRecordField(job.getApp()
+                .getSchemaDefs(), schema));
 
         
         if (field == null) {
