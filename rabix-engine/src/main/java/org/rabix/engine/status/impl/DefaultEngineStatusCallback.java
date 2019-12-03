@@ -1,8 +1,10 @@
 package org.rabix.engine.status.impl;
 
 import com.google.inject.Inject;
+import org.apache.commons.configuration.Configuration;
 import org.rabix.bindings.model.Job;
 import org.rabix.engine.service.BackendService;
+import org.rabix.engine.service.JobService;
 import org.rabix.engine.status.EngineStatusCallback;
 import org.rabix.engine.status.EngineStatusCallbackException;
 import org.slf4j.Logger;
@@ -17,6 +19,12 @@ public class DefaultEngineStatusCallback implements EngineStatusCallback {
   private final static Logger logger = LoggerFactory.getLogger(DefaultEngineStatusCallback.class);
 
   private final BackendService backendService;
+
+  @Inject
+  private Configuration configuration;
+
+  @Inject
+  private JobService jobService;
 
   @Inject
   public DefaultEngineStatusCallback(BackendService backendService) {

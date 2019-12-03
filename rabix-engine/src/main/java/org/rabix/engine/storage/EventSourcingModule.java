@@ -98,6 +98,12 @@ public class EventSourcingModule extends AbstractModule {
         return inMemoryRepositoryModule.provideIntermediaryFilesRepository();
     }
 
+    @Provides
+    @Singleton
+    public LSFJobRepository provideLSFJobRepository(JDBIRepositoryRegistry jdbiRepositoryRegistry) {
+        return jdbiRepositoryModule.lsfJobRepository(jdbiRepositoryRegistry);
+    }
+
     @Override
     protected void configure() {}
 }

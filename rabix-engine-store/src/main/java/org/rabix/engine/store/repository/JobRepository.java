@@ -32,6 +32,8 @@ public interface JobRepository {
 
   Set<Job> getByRootId(UUID rootId);
 
+  Set<Job> getCompletedJobsByRootIdAndName(UUID rootId, String name);
+
   Set<Job> getRootJobsForDeletion(JobStatus status, Timestamp olderThanTime);
 
   Set<Job> get(UUID rootID, Set<JobStatus> whereStatuses);
@@ -50,7 +52,12 @@ public interface JobRepository {
 
   Set<JobEntity> getByStatus(JobStatus status);
 
+  Set<Job> getByRootIdAndName(UUID cachedId, String name);
+
   class JobEntity {
+
+    public JobEntity() {
+    }
 
     Job job;
     UUID groupId;

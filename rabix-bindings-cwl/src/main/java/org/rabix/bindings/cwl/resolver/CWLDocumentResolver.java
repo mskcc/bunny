@@ -1,5 +1,21 @@
 package org.rabix.bindings.cwl.resolver;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
+import com.google.common.base.Preconditions;
+import org.apache.commons.lang.StringUtils;
+import org.rabix.bindings.BindingException;
+import org.rabix.bindings.BindingWrongVersionException;
+import org.rabix.bindings.ProtocolType;
+import org.rabix.bindings.cwl.helper.CWLSchemaHelper;
+import org.rabix.bindings.helper.URIHelper;
+import org.rabix.common.helper.JSONHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -10,33 +26,40 @@ import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
-
-import org.apache.commons.lang.StringUtils;
-import org.rabix.bindings.BindingException;
-import org.rabix.bindings.BindingWrongVersionException;
-import org.rabix.bindings.ProtocolType;
-import org.rabix.bindings.cwl.helper.CWLSchemaHelper;
-import org.rabix.bindings.helper.URIHelper;
-import org.rabix.common.helper.JSONHelper;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
-import com.google.common.base.Preconditions;
 
 public class CWLDocumentResolver {
-
+  public static final String ID_KEY = "id";
+  public static final String APP_STEP_KEY = "run";
+  public static final String TYPE_KEY = "type";
+  public static final String TYPES_KEY = "types";
+  public static final String CLASS_KEY = "class";
+  public static final String NAME_KEY = "name";
+  public static final String RESOLVER_REFERENCE_KEY = "$import";
+  public static final String RESOLVER_REFERENCE_INCLUDE_KEY = "$include";
+  public static final String GRAPH_KEY = "$graph";
+  public static final String SCHEMA_KEY = "$schemas";
+  public static final String NAMESPACES_KEY = "$namespaces";
+  public static final String SCHEMADEF_KEY = "SchemaDefRequirement";
+  public static final String CWL_VERSION_KEY = "cwlVersion";
+  public static final String INPUTS_KEY_LONG = "inputs";
+  public static final String INPUTS_KEY_SHORT = "in";
+  public static final String OUTPUTS_KEY_LONG = "outputs";
+  public static final String OUTPUTS_KEY_SHORT = "out";
+  public static final String COMMAND_LINE_TOOL = "CommandLineTool";
+  public static final String EXPRESSION_TOOL = "ExpressionTool";
+  public static final String WORKFLOW = "Workflow";
+  public static final String PYTHON_TOOL = "PythonTool";
+  public static final String APP_LOCATION = "appFileLocation";
+  public static final String RESOLVER_JSON_POINTER_KEY = "$job";
+  public static final String DOCUMENT_FRAGMENT_SEPARATOR = "#";
+  private final static Logger logger = LoggerFactory.getLogger(CWLDocumentResolver.class);
   public static Set<String> types = new HashSet<String>();
+  private static boolean graphResolve = false;
+  private static Map<String, String> namespaces = new HashMap<String, String>();
+  private static Map<String, Map<String, CWLDocumentResolverReference>> referenceCache = new HashMap<>();
+  private static Map<String, List<CWLDocumentResolverReplacement>> replacements = new HashMap<>();
 
   static {
     types.add("null");
@@ -57,43 +80,6 @@ public class CWLDocumentResolver {
     types.add("stderr");
     types.add("map");
   }
-
-  public static final String ID_KEY = "id";
-  public static final String APP_STEP_KEY = "run";
-  public static final String TYPE_KEY = "type";
-  public static final String TYPES_KEY = "types";
-  public static final String CLASS_KEY = "class";
-  public static final String NAME_KEY = "name";
-  public static final String RESOLVER_REFERENCE_KEY = "$import";
-  public static final String RESOLVER_REFERENCE_INCLUDE_KEY = "$include";
-  public static final String GRAPH_KEY = "$graph";
-  public static final String SCHEMA_KEY = "$schemas";
-  public static final String NAMESPACES_KEY = "$namespaces";
-  public static final String SCHEMADEF_KEY = "SchemaDefRequirement";
-  public static final String CWL_VERSION_KEY = "cwlVersion";
-
-  public static final String INPUTS_KEY_LONG = "inputs";
-  public static final String INPUTS_KEY_SHORT = "in";
-
-  public static final String OUTPUTS_KEY_LONG = "outputs";
-  public static final String OUTPUTS_KEY_SHORT = "out";
-
-  public static final String COMMAND_LINE_TOOL = "CommandLineTool";
-  public static final String EXPRESSION_TOOL = "ExpressionTool";
-  public static final String WORKFLOW = "Workflow";
-  public static final String PYTHON_TOOL = "PythonTool";
-
-  public static final String APP_LOCATION = "appFileLocation";
-
-  public static final String RESOLVER_JSON_POINTER_KEY = "$job";
-
-  public static final String DOCUMENT_FRAGMENT_SEPARATOR = "#";
-
-  private static boolean graphResolve = false;
-
-  private static Map<String, String> namespaces = new HashMap<String, String>();
-  private static Map<String, Map<String, CWLDocumentResolverReference>> referenceCache = new HashMap<>();
-  private static Map<String, List<CWLDocumentResolverReplacement>> replacements = new HashMap<>();
 
   public static String resolve(String appUrl) throws BindingException {
     String appUrlBase = appUrl;
@@ -138,25 +124,10 @@ public class CWLDocumentResolver {
       clearReferenceCache(appUrl);
       throw new BindingWrongVersionException("Document version is not " + ProtocolType.CWL.appVersion);
     }
-    
-    traverse(appUrl, root, file, null, root, false);
 
-    for (CWLDocumentResolverReplacement replacement : getReplacements(appUrl)) {
-      if (replacement.getParentNode().isArray()) {
-        replaceArrayItem(appUrl, root, replacement);
-      } else if (replacement.getParentNode().isObject()) {
-        replaceObjectItem(appUrl, root, replacement);
-      }
-    }
+    try {
+      traverse(appUrl, root, file, null, root, false);
 
-    if (graphResolve) {
-      String fragment = URIHelper.extractFragment(appUrl).substring(1);
-
-      clearReplacements(appUrl);
-      clearReferenceCache(appUrl);
-
-      removeFragmentIdentifier(appUrl, root, file, null, root, fragment);
-      
       for (CWLDocumentResolverReplacement replacement : getReplacements(appUrl)) {
         if (replacement.getParentNode().isArray()) {
           replaceArrayItem(appUrl, root, replacement);
@@ -164,25 +135,46 @@ public class CWLDocumentResolver {
           replaceObjectItem(appUrl, root, replacement);
         }
       }
-      
-      removeFragmentIdentifierIDs(appUrl, root, file, null, root);
-      
-      for (final JsonNode elem : root.get(GRAPH_KEY)) {
-        if (CWLSchemaHelper.normalizeId(elem.get(ID_KEY).asText()).equals(fragment)) {
-          Map<String, Object> result = JSONHelper.readMap(elem);
-          result.put(CWL_VERSION_KEY, cwlVersion);
-          root = JSONHelper.convertToJsonNode(result);
-          break;
-        }
-      }
-      graphResolve = false;
-    }
-    
-    clearReplacements(appUrl);
-    clearReferenceCache(appUrl);
 
-    if (rewriteDefaultPaths) {
-      addAppLocations(root, appUrl);
+      if (graphResolve) {
+        String fragment = URIHelper.extractFragment(appUrl).substring(1);
+
+        clearReplacements(appUrl);
+        clearReferenceCache(appUrl);
+
+        removeFragmentIdentifier(appUrl, root, file, null, root, fragment);
+
+        for (CWLDocumentResolverReplacement replacement : getReplacements(appUrl)) {
+          if (replacement.getParentNode().isArray()) {
+            replaceArrayItem(appUrl, root, replacement);
+          } else if (replacement.getParentNode().isObject()) {
+            replaceObjectItem(appUrl, root, replacement);
+          }
+        }
+
+        removeFragmentIdentifierIDs(appUrl, root, file, null, root);
+
+        for (final JsonNode elem : root.get(GRAPH_KEY)) {
+          if (CWLSchemaHelper.normalizeId(elem.get(ID_KEY).asText()).equals(fragment)) {
+            Map<String, Object> result = JSONHelper.readMap(elem);
+            result.put(CWL_VERSION_KEY, cwlVersion);
+            root = JSONHelper.convertToJsonNode(result);
+            break;
+          }
+        }
+        graphResolve = false;
+      }
+
+      clearReplacements(appUrl);
+      clearReferenceCache(appUrl);
+
+      if (rewriteDefaultPaths) {
+        addAppLocations(root, appUrl);
+      }
+    } catch (Exception e) {
+      logger.debug("Clearing cache for app {}", appUrl);
+      referenceCache.get(appUrl).clear();
+      throw e;
     }
     return JSONHelper.writeObject(root);
   }

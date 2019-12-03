@@ -1,10 +1,6 @@
 package org.rabix.executor.service.impl;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
+import com.google.inject.Inject;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.io.FileUtils;
 import org.rabix.bindings.BindingException;
@@ -22,9 +18,12 @@ import org.rabix.executor.service.CacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.inject.Inject;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
-public class CacheServiceImpl implements CacheService {
+public class FileCacheService implements CacheService {
 
   private final static Logger logger = LoggerFactory.getLogger(CacheService.class);
 
@@ -37,7 +36,7 @@ public class CacheServiceImpl implements CacheService {
   private boolean mockWorker;
 
   @Inject
-  public CacheServiceImpl(StorageConfiguration storageConfig, Configuration configuration,
+  public FileCacheService(StorageConfiguration storageConfig, Configuration configuration,
                           FileConfiguration fileConfiguration) {
     this.storageConfig = storageConfig;
     this.configuration = configuration;
@@ -78,144 +77,6 @@ public class CacheServiceImpl implements CacheService {
 
   private String getCacheName(String filename) {
     return "." + filename + ".meta";
-  }
-
-  /**
-   * Checks whether a job is equal to another job that is cached
-   * @param job
-   * @param cachedJob
-   * @return true if jobs are equal
-   */
-  private boolean jobsEqual(Job job, Job cachedJob, Bindings bindings) throws BindingException {
-    if (!BindingsFactory.create(job).loadAppObject(job.getApp()).equals(BindingsFactory.create(cachedJob).loadAppObject(cachedJob.getApp()))) {
-      return false;
-    }
-
-    if (!mockWorker) {
-      // FileValue equality is different for caching.
-      Map<String, Object> inputs = job.getInputs();
-      Map<String, Object> cachedInputs = cachedJob.getInputs();
-
-      for (String inputPortKey : inputs.keySet()) {
-        if (!cachedInputs.containsKey(inputPortKey)) {
-          return false;
-        }
-
-        Object value = inputs.get(inputPortKey);
-        Object cachedValue = cachedInputs.get(inputPortKey);
-        if (value == null && cachedValue == null) {
-          continue;
-        }
-
-        if (!cacheValuesEqual(value, cachedValue)) {
-          return false;
-        }
-      }
-
-      /*
-       * Integrity check is necessary for output files.
-       * Cache directory might be corrupted
-       */
-      Map<String, Object> cachedOutputs = cachedJob.getOutputs();
-      for (String outputPortKey : cachedOutputs.keySet()) {
-        Object cachedValue = cachedOutputs.get(outputPortKey);
-        if(cachedValue instanceof FileValue &&
-                !checkFileIntegrity((FileValue) cachedValue)) {
-          return false;
-        }
-      }
-
-    }
-    return true;
-  }
-
-  private boolean cacheValuesEqual(Object value, Object cachedValue) {
-    try {
-      if (value instanceof List && cachedValue instanceof List) {
-        for (int i = 0; i < ((List) value).size(); i++) {
-          if (!cacheValuesEqual(((List) value).get(i), ((List) cachedValue).get(i))) {
-            return false;
-          }
-        }
-        return true;
-      } else if (value instanceof Map && cachedValue instanceof Map) {
-        for (Object key : ((Map<?, ?>) value).keySet()) {
-          if (!cacheValuesEqual(((Map) value).get(key), ((Map) cachedValue).get(key))) {
-            return false;
-          }
-        }
-        return true;
-      } else if (value instanceof FileValue && cachedValue instanceof FileValue) {
-        return checkFileEquals((FileValue) value, (FileValue) cachedValue);
-      } else {
-        return value.equals(cachedValue);
-      }
-    } catch (Exception e){
-      logger.warn("Cache values are not equal. Exception thrown {}", e.getMessage());
-      return false;
-    }
-  }
-
-  /**
-   * Check whether input files are equal. For backwards compatibility,
-   * if {@code cachedValue} is missing some of the necessary fields, it does
-   * favor equality of the files.
-   * @param value
-   * @param cachedValue
-   * @return
-   */
-  private boolean checkFileEquals(FileValue value, FileValue cachedValue) {
-    try {
-      if (cachedValue.getSize() != 0 &&
-              !value.getSize().equals(cachedValue.getSize()))
-        return false;
-      if (cachedValue.getChecksum() != null &&
-              !value.getChecksum().equals(cachedValue.getChecksum()))
-        return false;
-      // This control does not apply to the opposite situation for the reason explained in the method's doc.
-      if (value.getSecondaryFiles()!=null && cachedValue.getSecondaryFiles()==null)
-        return false;
-      else if (value.getSecondaryFiles()!=null && cachedValue.getSecondaryFiles()!=null) {
-        for (int i = 0; i < value.getSecondaryFiles().size(); i++) {
-          if (!checkFileEquals(value.getSecondaryFiles().get(i), cachedValue.getSecondaryFiles().get(i))) {
-            return false;
-          }
-        }
-      }
-    } catch (Exception e) {
-      return false;
-    }
-    return true;
-  }
-
-  private boolean checkFileIntegrity(FileValue value) {
-    try {
-      File file = new File(value.getPath());
-      if (file.exists() && file.isFile()) {
-        if (value.getSize() != 0 &&
-                !value.getSize().equals(file.length())) {
-          return false;
-        }
-        if (value.getChecksum() != null) {
-          String checksumValue = ChecksumHelper.checksum(file, fileConfiguration.checksumAlgorithm());
-          if (!checksumValue.equals(value.getChecksum())) {
-            return false;
-          }
-        }
-        if (value.getSecondaryFiles() != null) {
-          for (int i = 0; i < value.getSecondaryFiles().size(); i++) {
-            if (!checkFileIntegrity(value.getSecondaryFiles().get(i))) {
-              return false;
-            }
-          }
-        }
-      } else {
-        return false;
-      }
-    } catch(Exception e) {
-      return false;
-    }
-    return true;
   }
 
   /**
@@ -285,7 +146,7 @@ public class CacheServiceImpl implements CacheService {
         job = fillCacheProperties(job);
       }
 
-      if (!jobsEqual(job, cachedJob, bindings)) {
+      if (!CacheService.jobsEqual(job, cachedJob, !mockWorker, fileConfiguration)) {
         logger.warn("Cached job is different. Doing dry run");
         return null;
       }

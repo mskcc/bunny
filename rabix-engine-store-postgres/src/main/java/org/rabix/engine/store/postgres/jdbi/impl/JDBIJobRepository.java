@@ -107,6 +107,10 @@ public interface JDBIJobRepository extends JobRepository {
   @SqlQuery("select * from job where status=:status::job_status")
   Set<JobEntity> getByStatus(@Bind("status") JobStatus status);
 
+  @Override
+  @SqlQuery("select * from job where root_id=:rootId and name=:name")
+  Set<Job> getByRootIdAndName(@Bind("rootId") UUID rootId, @Bind("name") String name);
+
   public static class JobMapper implements ResultSetMapper<Job> {
     public Job map(int index, ResultSet r, StatementContext ctx) throws SQLException {
       UUID id = r.getObject("id", UUID.class);

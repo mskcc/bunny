@@ -1,23 +1,71 @@
 package org.rabix.engine.store.memory.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import org.rabix.bindings.model.Job;
 import org.rabix.bindings.model.Job.JobStatus;
+import org.rabix.common.helper.JSONHelper;
 import org.rabix.engine.store.repository.JobRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class InMemoryJobRepository implements JobRepository {
+  private final static Logger logger = LoggerFactory.getLogger(InMemoryJobRepository.class);
 
-  private final Map<UUID, Map<UUID, JobEntity>> jobRepository;
+  private Map<UUID, Map<UUID, JobEntity>> jobRepository;
 
   @Inject
   public InMemoryJobRepository() {
     this.jobRepository = new ConcurrentHashMap<>();
+
+    String jobRepo = "jobRepo";
+
+    deserialize(jobRepo);
+
+    Runtime.getRuntime().addShutdownHook(new Thread(() ->
+    {
+      try {
+        if(!jobRepository.isEmpty())
+          serialize(jobRepo);
+      }
+      catch(IOException ex) {
+        ex.printStackTrace();
+      }
+    }
+    ));
+  }
+
+  private void serialize(String jobRepo) throws IOException {
+    logger.info("Serializing ({}): {}", this, jobRepository);
+
+    String s1 = JSONHelper.writeObject(jobRepository);
+    Files.write(Paths.get(jobRepo), s1.getBytes());
+  }
+
+  private void deserialize(String jobRepo)  {
+    try {
+      if(Files.exists(Paths.get(jobRepo))) {
+        byte[] bytes = Files.readAllBytes(Paths.get(jobRepo));
+        String s = new String(bytes);
+
+        jobRepository = JSONHelper.readObject(s, new TypeReference<Map<UUID, Map<UUID, JobEntity>>>(){});
+      }
+      else {
+        System.out.println("File doesn't exist: " + jobRepo);
+
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   @Override
@@ -100,11 +148,24 @@ public class InMemoryJobRepository implements JobRepository {
   @Override
   public Set<Job> getByRootId(UUID rootId) {
     Set<Job> rootJobs = new HashSet<>();
+    if(!jobRepository.containsKey(rootId))
+      return rootJobs;
     Map<UUID, JobEntity> jobs = jobRepository.get(rootId);
     for(JobEntity job: jobs.values()) {
       rootJobs.add(job.getJob());
     }
     return rootJobs;
+  }
+
+  @Override
+  public Set<Job> getCompletedJobsByRootIdAndName(UUID rootId, String name) {
+    Set<Job> byRootId = getByRootId(rootId);
+    Set<Job> completedJobs = byRootId.stream()
+            .filter(j -> j.getName().equals(name))
+            .filter(j -> j.getStatus() == JobStatus.COMPLETED)
+            .collect(Collectors.toSet());
+
+    return completedJobs;
   }
 
   @Override
@@ -211,5 +272,14 @@ public class InMemoryJobRepository implements JobRepository {
             .flatMap(map -> map.values().stream())
             .filter(value -> value.getJob().getStatus() == status)
             .collect(Collectors.toSet());
+  }
+
+  @Override
+  public Set<Job> getByRootIdAndName(UUID rootId, String name) {
+    Set<Job> jobs = getByRootId(rootId).stream()
+            .filter(j -> j.getName().equals(name))
+            .collect(Collectors.toSet());
+
+    return jobs;
   }
 }

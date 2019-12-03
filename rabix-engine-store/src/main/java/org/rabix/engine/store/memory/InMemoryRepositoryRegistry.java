@@ -1,19 +1,8 @@
 package org.rabix.engine.store.memory;
 
-import org.rabix.engine.store.repository.TransactionHelper;
-import org.rabix.engine.store.memory.impl.InMemoryAppRepository;
-import org.rabix.engine.store.memory.impl.InMemoryBackendRepository;
-import org.rabix.engine.store.memory.impl.InMemoryContextRecordRepository;
-import org.rabix.engine.store.memory.impl.InMemoryDAGRepository;
-import org.rabix.engine.store.memory.impl.InMemoryEventRepository;
-import org.rabix.engine.store.memory.impl.InMemoryIntermediaryFilesRepository;
-import org.rabix.engine.store.memory.impl.InMemoryJobRecordRepository;
-import org.rabix.engine.store.memory.impl.InMemoryJobRepository;
-import org.rabix.engine.store.memory.impl.InMemoryJobStatsRecordRepository;
-import org.rabix.engine.store.memory.impl.InMemoryLinkRecordRepository;
-import org.rabix.engine.store.memory.impl.InMemoryVariableRecordRepository;
-
 import com.google.inject.Inject;
+import org.rabix.engine.store.memory.impl.*;
+import org.rabix.engine.store.repository.TransactionHelper;
 
 public class InMemoryRepositoryRegistry extends TransactionHelper {
   
@@ -28,9 +17,22 @@ public class InMemoryRepositoryRegistry extends TransactionHelper {
   InMemoryLinkRecordRepository memoryLinkRecordRepository;
   InMemoryVariableRecordRepository memoryVariableRecordRepository;
   InMemoryIntermediaryFilesRepository memoryIntermediaryFilesRepository;
+  InMemoryLSFJobRepository memoryLSFJobRepository;
   
   @Inject
-  public InMemoryRepositoryRegistry(InMemoryAppRepository memoryAppRepository, InMemoryBackendRepository memoryBackendRepository, InMemoryContextRecordRepository memoryContextRecordRepository, InMemoryDAGRepository memoryDAGRepository, InMemoryEventRepository memoryEventRepository, InMemoryJobRecordRepository memoryJobRecordRepository, InMemoryJobRepository memoryJobRepository, InMemoryLinkRecordRepository memoryLinkRecordRepository, InMemoryVariableRecordRepository memoryVariableRecordRepository, InMemoryJobStatsRecordRepository memoryJobStatsRecordRepository, InMemoryIntermediaryFilesRepository memoryIntermediaryFilesRepository) {
+  public InMemoryRepositoryRegistry(
+          InMemoryAppRepository memoryAppRepository,
+          InMemoryBackendRepository memoryBackendRepository,
+          InMemoryContextRecordRepository memoryContextRecordRepository,
+          InMemoryDAGRepository memoryDAGRepository,
+          InMemoryEventRepository memoryEventRepository,
+          InMemoryJobRecordRepository memoryJobRecordRepository,
+          InMemoryJobRepository memoryJobRepository,
+          InMemoryLinkRecordRepository memoryLinkRecordRepository,
+          InMemoryVariableRecordRepository memoryVariableRecordRepository,
+          InMemoryJobStatsRecordRepository memoryJobStatsRecordRepository,
+          InMemoryIntermediaryFilesRepository memoryIntermediaryFilesRepository,
+          InMemoryLSFJobRepository memoryLSFJobRepository) {
     this.memoryAppRepository = memoryAppRepository;
     this.memoryBackendRepository = memoryBackendRepository;
     this.memoryContextRecordRepository = memoryContextRecordRepository;
@@ -42,6 +44,7 @@ public class InMemoryRepositoryRegistry extends TransactionHelper {
     this.memoryVariableRecordRepository = memoryVariableRecordRepository;
     this.memoryJobStatsRecordRepository = memoryJobStatsRecordRepository;
     this.memoryIntermediaryFilesRepository = memoryIntermediaryFilesRepository;
+    this.memoryLSFJobRepository = memoryLSFJobRepository;
   }
   
   public InMemoryAppRepository applicationRepository() {
@@ -87,7 +90,11 @@ public class InMemoryRepositoryRegistry extends TransactionHelper {
   public InMemoryIntermediaryFilesRepository intermediaryFilesRepository() {
     return memoryIntermediaryFilesRepository;
   }
-  
+
+  public InMemoryLSFJobRepository inMemoryLSFJobRepository() {
+    return memoryLSFJobRepository;
+  }
+
   public <Result> Result doInTransaction(TransactionCallback<Result> callback) throws Exception {
     return callback.call();
   }

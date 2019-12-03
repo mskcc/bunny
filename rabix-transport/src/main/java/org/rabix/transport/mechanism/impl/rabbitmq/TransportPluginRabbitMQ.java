@@ -46,7 +46,7 @@ public class TransportPluginRabbitMQ implements TransportPlugin<TransportQueueRa
       }
 
       try {
-        Thread.sleep(RETRY_TIMEOUT*1000);
+        Thread.sleep(RETRY_TIMEOUT * 1000);
       } catch (InterruptedException e1) {
         // Ignore
       }
@@ -80,6 +80,7 @@ public class TransportPluginRabbitMQ implements TransportPlugin<TransportQueueRa
     int nThreads = TransportConfigRabbitMQ.consumersThreadPoolSize(configuration);
     ThreadFactory threadFactory = new ThreadFactory() {
       int threadNum;
+
       @Override
       public Thread newThread(Runnable runnable) {
         return new Thread(runnable, CONSUMER_THREAD_PREFIX + ++threadNum);
@@ -120,7 +121,8 @@ public class TransportPluginRabbitMQ implements TransportPlugin<TransportQueueRa
       }
     }
   }
-  public void initQueue(TransportQueueRabbitMQ queue) throws TransportPluginException{
+
+  public void initQueue(TransportQueueRabbitMQ queue) throws TransportPluginException {
     Channel channel = null;
     try {
       channel = connection.createChannel();
@@ -137,6 +139,7 @@ public class TransportPluginRabbitMQ implements TransportPlugin<TransportQueueRa
       }
     }
   }
+
   /**
    * {@link TransportPluginRabbitMQ} extension for Exchange initialization
    */
@@ -156,6 +159,7 @@ public class TransportPluginRabbitMQ implements TransportPlugin<TransportQueueRa
       }
     }
   }
+
   public void deleteQueue(String queue) {
     Channel channel = null;
     try {
@@ -178,25 +182,16 @@ public class TransportPluginRabbitMQ implements TransportPlugin<TransportQueueRa
     String payload = BeanSerializer.serializeFull(entity);
     while (true) {
       try {
-        getChannel().basicPublish(queue.getExchange(), queue.getRoutingKey(), MessageProperties.PERSISTENT_TEXT_PLAIN, payload.getBytes(DEFAULT_ENCODING));
+        getChannel().basicPublish(queue.getExchange(), queue.getRoutingKey(), MessageProperties
+                .PERSISTENT_TEXT_PLAIN, payload.getBytes(DEFAULT_ENCODING));
         return ResultPair.success();
       } catch (Exception e) {
         logger.error("Failed to send a message to " + queue, e);
 
-        while (true) {
-          try {
-            Thread.sleep(RETRY_TIMEOUT*1000);
-          } catch (InterruptedException e1) {
-            // Ignore
-          }
-
-          try {
-            initConnection();
-            logger.info("Reconnected to {}", queue);
-            break;
-          } catch (TransportPluginException e1) {
-            logger.info("Sender reconnect failed. Trying again in {} seconds.", RETRY_TIMEOUT);
-          }
+        try {
+          Thread.sleep(RETRY_TIMEOUT * 1000);
+        } catch (InterruptedException e1) {
+          // Ignore
         }
       }
     }
@@ -208,7 +203,8 @@ public class TransportPluginRabbitMQ implements TransportPlugin<TransportQueueRa
   }
 
   @Override
-  public <T> void startReceiver(TransportQueueRabbitMQ sourceQueue, Class<T> clazz, ReceiveCallback<T> receiveCallback, ErrorCallback errorCallback) {
+  public <T> void startReceiver(TransportQueueRabbitMQ sourceQueue, Class<T> clazz, ReceiveCallback<T>
+          receiveCallback, ErrorCallback errorCallback) {
     final Receiver<T> receiver = new Receiver<>(clazz, receiveCallback, errorCallback, sourceQueue);
     receivers.put(sourceQueue, receiver);
     receiverThreadPool.submit(new Runnable() {
@@ -238,7 +234,8 @@ public class TransportPluginRabbitMQ implements TransportPlugin<TransportQueueRa
 
     private volatile boolean isStopped = false;
 
-    public Receiver(Class<T> clazz, ReceiveCallback<T> callback, ErrorCallback errorCallback, TransportQueueRabbitMQ queue) {
+    public Receiver(Class<T> clazz, ReceiveCallback<T> callback, ErrorCallback errorCallback, TransportQueueRabbitMQ
+            queue) {
       this.clazz = clazz;
       this.callback = callback;
       this.errorCallback = errorCallback;
@@ -255,7 +252,8 @@ public class TransportPluginRabbitMQ implements TransportPlugin<TransportQueueRa
 
         consumer = new DefaultConsumer(channel) {
           @Override
-          public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+          public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[]
+                  body) throws IOException {
             String message = new String(body, "UTF-8");
             try {
               callback.handleReceive(BeanSerializer.deserialize(message, clazz), () -> {

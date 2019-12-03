@@ -129,4 +129,10 @@ public class JDBIRepositoryModule extends AbstractModule {
   public IntermediaryFilesRepository provideIntermediaryFilesRepository(JDBIRepositoryRegistry repositoryRegistry) {
     return repositoryRegistry.intermediaryFilesRepository();
   }
+
+  @Provides
+  @Singleton
+  public LSFJobRepository lsfJobRepository(JDBIRepositoryRegistry repositoryRegistry) {
+    return repositoryRegistry.lsfJobRepository();
+  }
 }

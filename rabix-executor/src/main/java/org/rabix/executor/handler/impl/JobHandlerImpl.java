@@ -1,21 +1,6 @@
 package org.rabix.executor.handler.impl;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
-
-import javax.inject.Inject;
-
+import com.google.inject.assistedinject.Assisted;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.rabix.backend.api.callback.WorkerStatusCallback;
@@ -60,7 +45,14 @@ import org.rabix.executor.service.JobDataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.inject.assistedinject.Assisted;
+import javax.inject.Inject;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
 
 public class JobHandlerImpl implements JobHandler {
 
@@ -118,7 +110,12 @@ public class JobHandlerImpl implements JobHandler {
     logger.info("Start command line tool for id={}", job.getId());
     try {
       job = statusCallback.onJobReady(job);
-      /*
+
+      Bindings bindings = BindingsFactory.create(job);
+      Map<String, Object> commonInputs = (Map<String, Object>) bindings.translateToCommon(job.getInputs());
+      job = Job.cloneWithInputs(job, commonInputs);
+
+        /*
        * If cache service and mock worker are enabled,
        * executor will simply pass the results before binding
        * or checking on inputs.
@@ -137,7 +134,6 @@ public class JobHandlerImpl implements JobHandler {
         }
       }
 
-      Bindings bindings = BindingsFactory.create(job);
 
       job = bindings.preprocess(job, workingDir, null);
 

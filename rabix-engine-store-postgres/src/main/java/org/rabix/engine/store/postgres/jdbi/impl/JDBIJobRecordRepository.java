@@ -79,6 +79,10 @@ public abstract class JDBIJobRecordRepository extends JobRecordRepository {
   @SqlQuery("select * from job_record where job_state::text in (<states>) and root_id=:root_id")
   public abstract List<JobRecord> get(@Bind("root_id") UUID rootId, @BindIn("states") Set<JobRecord.JobState> states);
 
+  @Override
+  @SqlQuery("select * from job_record")
+  public abstract List<JobRecord> get();
+
   @BindingAnnotation(BindJobRecord.JobBinderFactory.class)
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ ElementType.PARAMETER })

@@ -1,15 +1,7 @@
 package org.rabix.bindings.cwl;
 
-import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
 import org.rabix.bindings.BindingException;
 import org.rabix.bindings.CommandLine;
@@ -20,26 +12,23 @@ import org.rabix.bindings.cwl.bean.CWLJob;
 import org.rabix.bindings.cwl.bean.CWLRuntime;
 import org.rabix.bindings.cwl.expression.CWLExpressionException;
 import org.rabix.bindings.cwl.expression.CWLExpressionResolver;
-import org.rabix.bindings.cwl.helper.CWLBeanHelper;
-import org.rabix.bindings.cwl.helper.CWLBindingHelper;
-import org.rabix.bindings.cwl.helper.CWLFileValueHelper;
-import org.rabix.bindings.cwl.helper.CWLJobHelper;
-import org.rabix.bindings.cwl.helper.CWLRuntimeHelper;
-import org.rabix.bindings.cwl.helper.CWLSchemaHelper;
+import org.rabix.bindings.cwl.helper.*;
 import org.rabix.bindings.mapper.FileMappingException;
 import org.rabix.bindings.mapper.FilePathMapper;
 import org.rabix.bindings.model.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
+import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.Map.Entry;
 
 public class CWLCommandLineBuilder implements ProtocolCommandLineBuilder {
 
-  private final static Logger logger = LoggerFactory.getLogger(CWLCommandLineBuilder.class);
-
   public final static String SHELL_QUOTE_KEY = "shellQuote";
+  private final static Logger logger = LoggerFactory.getLogger(CWLCommandLineBuilder.class);
 
     @Override
     public CommandLine buildCommandLineObject(Job job, File workingDir, FilePathMapper filePathMapper) throws BindingException {
@@ -54,6 +43,7 @@ public class CWLCommandLineBuilder implements ProtocolCommandLineBuilder {
     cwlJob.setRuntime(remapedRuntime);
 
     if (cwlJob.getApp().isExpressionTool()) {
+      logger.warn("CWLJob App {} is an expression tool. Command line won't be build", cwlJob.getApp().getId());
       return null;
     }
     CWLCommandLineTool commandLineTool = (CWLCommandLineTool) cwlJob.getApp();
@@ -195,7 +185,12 @@ public class CWLCommandLineBuilder implements ProtocolCommandLineBuilder {
   private List<CWLCommandLinePart> buildRecordCommandLinePart(CWLJob job, Object value, Object schema, FilePathMapper filePathMapper) throws BindingException {
     List<CWLCommandLinePart> result = new ArrayList<CWLCommandLinePart>();
     Object schemaCopy = !CWLSchemaHelper.isRequired(schema) ? CWLSchemaHelper.getSchemaFromNonRequired(schema) : schema;
-    List<Object> fields = (List<Object>) CWLSchemaHelper.getFields(schemaCopy);
+    Object fieldsObj = CWLSchemaHelper.getFields(schemaCopy);
+
+    if (!(fieldsObj instanceof List))
+      fieldsObj = Arrays.asList(CWLSchemaHelper.getFields(schemaCopy));
+
+    List<Object> fields = (List<Object>) fieldsObj;
     for (Object sch : fields) {
       if (CWLSchemaHelper.isRecordFromSchema(sch) && CWLSchemaHelper.getInputBinding(sch) == null) {
         result.addAll(buildRecordCommandLinePart(job, value, sch, filePathMapper));
